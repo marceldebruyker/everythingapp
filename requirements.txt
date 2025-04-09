@@ -19,6 +19,7 @@ googleapis-common-protos==1.69.2
 grpcio==1.71.0
 grpcio-status==1.71.0
 gspread==6.2.0
+gspread-dataframe==4.0.0
 httplib2==0.22.0
 idna==3.10
 Jinja2==3.1.6
@@ -31,6 +32,7 @@ oauthlib==3.2.2
 packaging==24.2
 pandas==2.2.3
 pillow==11.1.0
+plotly==6.0.1
 proto-plus==1.26.1
 protobuf==5.29.4
 pyarrow==19.0.1
