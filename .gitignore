@@ -1,0 +1,31 @@
+# Streamlit secrets - VERY IMPORTANT
+.streamlit/secrets.toml
+
+# Python cache files and artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment folders (common names)
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution / packaging
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# IDE / Editor specific files
+.vscode/       # Optional: if you don't want to share VSCode settings
+.idea/         # For PyCharm/IntelliJ users in the team
+.DS_Store      # macOS specific
+
+# Log files
+*.log
