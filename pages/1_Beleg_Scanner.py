@@ -11,7 +11,7 @@ from datetime import datetime # For timestamp
 
 # --- Seitenkonfiguration ---
 st.set_page_config(
-    page_title="Beleg Scanner Auto-Kategorie",
+    page_title="Beleg Scanner", # Simpler title maybe?
     page_icon="🧾",
     layout="wide"
 )
@@ -20,26 +20,66 @@ st.set_page_config(
 st.title("🧾 Beleg Scanner mit Auto-Kategorisierung")
 st.caption("Mache ein Foto oder lade Beleg-Bilder hoch für eine strukturierte Analyse inkl. Kategorie und Google Sheets Export.")
 
-# --- API Key & Credentials Laden ---
+# --- API Key & Credentials Laden (Minimal Change for Render Fallback) ---
 gemini_api_key = None
 google_sheets_credentials_info = None
+config_load_success = False # Flag to track successful loading
 
 try:
+    # Attempt standard loading (works locally, might fail partially on Render)
     gemini_api_key = st.secrets["GOOGLE_API_KEY"]
     google_sheets_credentials_info = json.loads(st.secrets["GOOGLE_SHEETS_CREDENTIALS"])
-except (AttributeError, FileNotFoundError, KeyError, json.JSONDecodeError) as e:
-    st.warning(f"Fehler beim Laden der Secrets: {e}. Versuche Umgebungsvariablen.")
-    if not gemini_api_key:
-        gemini_api_key = os.getenv("GOOGLE_API_KEY")
-    pass
+    st.info("Secrets erfolgreich via st.secrets geladen.") # Will only show if both succeed here
+    config_load_success = True # Mark as successful if try block completes
 
-if not gemini_api_key:
-    st.error("Google Gemini API Key nicht gefunden!")
-    st.stop()
-if not google_sheets_credentials_info:
-     st.error("Google Sheets Credentials nicht gefunden oder fehlerhaft in st.secrets!")
-     st.info("Stelle sicher, dass GOOGLE_SHEETS_CREDENTIALS in .streamlit/secrets.toml als korrekt formatierter JSON-String vorhanden ist.")
+except (AttributeError, FileNotFoundError, KeyError, json.JSONDecodeError) as e:
+    st.warning(f"Fehler beim direkten Laden via st.secrets: {e}. Versuche Umgebungsvariablen als Fallback.")
+
+    # --- Fallback for API Key ---
+    if not gemini_api_key: # Check if API key wasn't loaded in try block
+        gemini_api_key = os.getenv("GOOGLE_API_KEY")
+        if gemini_api_key:
+             st.info("Gemini API Key via Umgebungsvariable geladen.")
+        else:
+             st.error("Google Gemini API Key konnte weder via st.secrets noch Umgebungsvariable gefunden werden!")
+             st.stop() # Stop if API Key is definitely missing
+
+    # --- Fallback for Sheets Credentials ---
+    if not google_sheets_credentials_info: # Check if Sheets creds weren't loaded or parsed in try block
+        google_sheets_credentials_str = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
+        if google_sheets_credentials_str:
+            st.info("Google Sheets Credentials String via Umgebungsvariable gefunden. Versuche Parsing...")
+            try:
+                google_sheets_credentials_info = json.loads(google_sheets_credentials_str)
+                # Add a basic validation check after parsing
+                if not isinstance(google_sheets_credentials_info, dict) or "client_email" not in google_sheets_credentials_info:
+                     raise ValueError("Ungültige Struktur oder fehlende 'client_email'.")
+                st.success("Google Sheets Credentials via Umgebungsvariable erfolgreich geladen und geparst.")
+                config_load_success = True # Mark success only if parsing env var works
+            except json.JSONDecodeError as json_e:
+                st.error(f"Konnte Google Sheets Credentials von Umgebungsvariable nicht parsen (ungültiges JSON): {json_e}")
+                st.error(f"Empfangener String (Anfang): '{google_sheets_credentials_str[:70]}...'")
+                st.info("Prüfe den Wert der 'GOOGLE_SHEETS_CREDENTIALS' Umgebungsvariable in Render. Er muss ein exakter, valider JSON-String sein.")
+                st.stop() # Stop here if parsing env var fails
+            except ValueError as val_e:
+                 st.error(f"Fehler in Google Sheets Credentials Daten (aus Umgebungsvariable): {val_e}")
+                 st.stop()
+        else:
+             # If we are here, st.secrets failed AND os.getenv returned None for Sheets
+             st.error("Google Sheets Credentials konnten weder via st.secrets noch Umgebungsvariable gefunden werden!")
+             st.stop() # Stop if Sheets creds are definitely missing
+
+# Final verification using the flag
+if not config_load_success:
+     # This path should ideally not be reached if stops above work correctly, but as a safeguard:
+     st.error("Konfiguration der Credentials konnte nicht erfolgreich abgeschlossen werden.")
      st.stop()
+
+# Display loaded info for confirmation
+st.write(f"✔️ Gemini API Key geladen (endet mit ...{gemini_api_key[-4:]}).")
+st.write(f"✔️ Google Sheets Credentials geladen für: {google_sheets_credentials_info.get('client_email')}.")
+st.divider()
+
 
 # --- Google Services Konfiguration ---
 spreadsheet = None
